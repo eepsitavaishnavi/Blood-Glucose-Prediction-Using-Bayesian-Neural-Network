@@ -5,7 +5,6 @@ This project applies deep statistical inference to produce not just predictions,
 
 ---
 
-## Team Members
 
 ##  Team Members
 - **Janapareddy Vidya Varshini** – 230041013  
