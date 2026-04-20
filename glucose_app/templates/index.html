@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>GlucoSense — Bayesian Blood Glucose Prediction</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0a0f1a;
+  --bg2:      #0f1625;
+  --bg3:      #141d2e;
+  --panel:    #182133;
+  --border:   rgba(99,179,237,0.12);
+  --accent:   #63b3ed;
+  --accent2:  #48bb78;
+  --warn:     #f6ad55;
+  --danger:   #fc8181;
+  --text:     #e2e8f0;
+  --muted:    #718096;
+  --mono:     'DM Mono', monospace;
+  --sans:     'DM Sans', sans-serif;
+  --display:  'Syne', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Grid background ── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(99,179,237,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(99,179,237,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.wrap { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+/* ── Header ── */
+header {
+  padding: 32px 0 24px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 40px;
+}
+.header-inner { display: flex; align-items: center; gap: 20px; }
+.logo-mark {
+  width: 48px; height: 48px;
+  background: linear-gradient(135deg, var(--accent), #4299e1);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+.site-name {
+  font-family: var(--display);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.site-name span { color: var(--accent); }
+
+/* Status badge */
+.status-row { margin-left: auto; display: flex; gap: 10px; align-items: center; }
+.badge {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid;
+}
+.badge.err { color: var(--danger);  border-color: rgba(252,129,129,0.3); background: rgba(252,129,129,0.08); }
+
+/* ── Layout ── */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+@media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+
+/* ── Cards ── */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
+}
+.card-title {
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-title::before {
+  content: '';
+  display: block;
+  width: 4px; height: 14px;
+  background: var(--accent);
+  border-radius: 2px;
+}
+
+/* ── Form elements ── */
+label {
+  display: block;
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  margin-bottom: 7px;
+  text-transform: uppercase;
+}
+input[type="number"], select {
+  width: 100%;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 14px;
+  margin-bottom: 16px;
+  transition: border-color 0.2s;
+  outline: none;
+}
+input[type="number"]:focus, select:focus {
+  border-color: rgba(99,179,237,0.5);
+}
+
+/* Glucose history grid */
+.glucose-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.glucose-grid input {
+  text-align: center;
+  padding: 8px 4px;
+  margin-bottom: 0;
+  font-size: 13px;
+  border-radius: 6px;
+}
+.glucose-grid input.hypo   { border-color: rgba(252,129,129,0.5); color: var(--danger); }
+.glucose-grid input.hyper  { border-color: rgba(246,173,85,0.5);  color: var(--warn); }
+.glucose-grid input.normal { border-color: rgba(72,187,120,0.4);  color: var(--accent2); }
+
+.slot-labels {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.slot-label {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+}
+
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+/* ── Buttons ── */
+.btn-primary {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #3182ce, var(--accent));
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-family: var(--display);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition: opacity 0.2s, transform 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary:hover { opacity: 0.92; transform: translateY(-1px); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.btn-primary.loading::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  animation: shimmer 1.2s infinite;
+}
+@keyframes shimmer { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+
+.btn-secondary {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Result panel ── */
+.result-panel { grid-column: 1 / -1; display: none; }
+.result-panel.visible { display: block; }
+
+.result-hero {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 32px;
+  align-items: center;
+  margin-bottom: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.result-hero::before {
+  content: '';
+  position: absolute;
+  top: -60px; right: -60px;
+  width: 200px; height: 200px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99,179,237,0.06), transparent 70%);
+  pointer-events: none;
+}
+
+.pred-value {
+  font-family: var(--display);
+  font-size: 72px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -3px;
+}
+.pred-unit {
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.zone-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 30px;
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.zone-normal      { background: rgba(72,187,120,0.12); color: var(--accent2); border: 1px solid rgba(72,187,120,0.3); }
+.zone-hypoglycaemia { background: rgba(252,129,129,0.12); color: var(--danger); border: 1px solid rgba(252,129,129,0.3); }
+.zone-hyperglycaemia { background: rgba(246,173,85,0.12); color: var(--warn); border: 1px solid rgba(246,173,85,0.3); }
+.zone-dot { width: 8px; height: 8px; border-radius: 50%; }
+.zone-normal .zone-dot      { background: var(--accent2); }
+.zone-hypoglycaemia .zone-dot { background: var(--danger); animation: pulse 1s infinite; }
+.zone-hyperglycaemia .zone-dot { background: var(--warn); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── Uncertainty bars ── */
+.unc-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+.unc-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+.unc-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 8px;
+}
+.unc-val {
+  font-family: var(--display);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+}
+.unc-val span { font-size: 14px; color: var(--muted); font-weight: 400; }
+.unc-bar-bg {
+  height: 4px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 4px;
+  margin-top: 10px;
+  overflow: hidden;
+}
+.unc-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.8s cubic-bezier(0.22,1,0.36,1);
+}
+
+/* ── CI bar ── */
+.ci-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.ci-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.ci-range-bar {
+  position: relative;
+  height: 32px;
+  background: var(--bg2);
+  border-radius: 8px;
+  overflow: visible;
+}
+.ci-fill {
+  position: absolute;
+  top: 0; bottom: 0;
+  background: rgba(99,179,237,0.15);
+  border: 1px solid rgba(99,179,237,0.3);
+  border-radius: 6px;
+  transition: all 0.8s cubic-bezier(0.22,1,0.36,1);
+}
+.ci-tick {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(99,179,237,0.6);
+}
+.ci-linex-tick {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px; height: 20px;
+  border-radius: 2px;
+  background: var(--warn);
+  opacity: 0.8;
+}
+.ci-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ── Clinical alerts ── */
+.alert {
+  border-radius: 10px;
+  padding: 14px 18px;
+  font-size: 13px;
+  margin-bottom: 12px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.alert-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.alert-danger { background: rgba(252,129,129,0.08); border: 1px solid rgba(252,129,129,0.25); color: #fca5a5; }
+.alert-warn   { background: rgba(246,173,85,0.08);  border: 1px solid rgba(246,173,85,0.25);  color: #fcd34d; }
+.alert-ok     { background: rgba(72,187,120,0.08);  border: 1px solid rgba(72,187,120,0.25);  color: #6ee7b7; }
+
+/* ── Error state ── */
+.error-msg {
+  background: rgba(252,129,129,0.08);
+  border: 1px solid rgba(252,129,129,0.2);
+  border-radius: 10px;
+  padding: 14px 18px;
+  color: var(--danger);
+  font-family: var(--mono);
+  font-size: 13px;
+  display: none;
+  margin-top: 12px;
+}
+.error-msg.visible { display: block; }
+
+/* ── Animation ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-in { animation: fadeUp 0.45s cubic-bezier(0.22,1,0.36,1) both; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <div class="header-inner">
+      <div class="logo-mark">⬡</div>
+      <div>
+        <div class="site-name">Gluco<span>Sense</span></div>
+      </div>
+      <div class="status-row">
+        {% if not model_loaded or not scalers_loaded %}
+          <span class="badge err">● SETUP NEEDED</span>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  {% if not model_loaded or not scalers_loaded %}
+  <div class="alert alert-warn" style="margin-bottom:24px">
+    <span class="alert-icon">⚠</span>
+    <div>
+      <strong>Setup required.</strong> Place <code>best_bigru_model.pt</code>,
+      <code>scaler_X.pkl</code>, and <code>scaler_y.pkl</code> in the same folder as
+      <code>app.py</code>. See <code>README.md</code> for instructions.
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="grid">
+
+    <div class="card">
+      <div class="card-title">Glucose History Input</div>
+
+      <label>Enter last 24 readings (5-min intervals, mg/dL) — oldest → newest</label>
+
+      <div class="slot-labels" id="slotLabels"></div>
+      <div class="glucose-grid" id="glucoseGrid"></div>
+
+      <div class="row2">
+        <div>
+          <label>Hour of day (0–23)</label>
+          <input type="number" id="hour" min="0" max="23" value="14"/>
+        </div>
+        <div>
+          <label>Day of week (0=Mon, 6=Sun)</label>
+          <input type="number" id="dow" min="0" max="6" value="0"/>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-bottom:12px;">
+        <button class="btn-secondary" onclick="fillDemo('normal')">Demo: Normal</button>
+        <button class="btn-secondary" onclick="fillDemo('hypo')">Demo: Hypo trend</button>
+        <button class="btn-secondary" onclick="fillDemo('hyper')">Demo: Hyper trend</button>
+        <button class="btn-secondary" onclick="clearAll()">Clear</button>
+      </div>
+
+      <button class="btn-primary" id="predictBtn" onclick="runPrediction()"
+              {% if not model_loaded or not scalers_loaded %}disabled{% endif %}>
+        Run Bayesian Prediction
+      </button>
+
+      <div class="error-msg" id="errorMsg"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Glycaemic Zones</div>
+      <div style="display:flex; flex-direction:column; gap:12px; font-family:var(--mono); font-size:13px; margin-top: 10px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:12px;height:12px;border-radius:50%;background:var(--danger)"></div>
+          <span style="color:var(--danger)">Hypoglycaemia</span>
+          <span style="color:var(--muted); margin-left:auto">&lt; 70 mg/dL</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:12px;height:12px;border-radius:50%;background:var(--accent2)"></div>
+          <span style="color:var(--accent2)">Normal range</span>
+          <span style="color:var(--muted); margin-left:auto">70 – 180 mg/dL</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:12px;height:12px;border-radius:50%;background:var(--warn)"></div>
+          <span style="color:var(--warn)">Hyperglycaemia</span>
+          <span style="color:var(--muted); margin-left:auto">&gt; 180 mg/dL</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="result-panel card" id="resultPanel">
+
+      <div class="card-title">Prediction Results — 30-min Horizon</div>
+
+      <div class="result-hero animate-in" id="resultHero">
+        <div>
+          <div class="pred-value" id="predValue">—</div>
+          <div class="pred-unit">mg/dL predicted</div>
+        </div>
+        <div id="zoneDisplay"></div>
+      </div>
+
+      <div id="clinicalAlert"></div>
+
+      <div class="unc-grid">
+        <div class="unc-card">
+          <div class="unc-label">Epistemic σ (Model)</div>
+          <div class="unc-val"><span id="epistVal">—</span> <span>mg/dL</span></div>
+          <div class="unc-bar-bg"><div class="unc-bar-fill" id="epistBar" style="width:0;background:var(--accent)"></div></div>
+        </div>
+        <div class="unc-card">
+          <div class="unc-label">Aleatoric σ (Data)</div>
+          <div class="unc-val"><span id="aleatVal">—</span> <span>mg/dL</span></div>
+          <div class="unc-bar-bg"><div class="unc-bar-fill" id="aleatBar" style="width:0;background:#b794f4"></div></div>
+        </div>
+        <div class="unc-card">
+          <div class="unc-label">Total σ (Combined)</div>
+          <div class="unc-val"><span id="totalVal">—</span> <span>mg/dL</span></div>
+          <div class="unc-bar-bg"><div class="unc-bar-fill" id="totalBar" style="width:0;background:var(--accent2)"></div></div>
+        </div>
+      </div>
+
+      <div class="ci-card">
+        <div class="ci-header">
+          <span style="font-family:var(--mono);font-size:12px;color:var(--muted)">
+            95% Bayesian Credible Interval &nbsp;·&nbsp; P(true glucose ∈ I | data) = 0.95
+          </span>
+          <span style="font-family:var(--mono);font-size:13px;color:var(--text)">
+            <span id="ciLo">—</span> – <span id="ciHi">—</span> mg/dL
+          </span>
+        </div>
+        <div class="ci-range-bar" id="ciBar">
+          <div class="ci-fill"  id="ciFill"></div>
+          <div class="ci-tick"  id="ciTick"></div>
+          <div class="ci-linex-tick" id="linexTick" title="LINEX-adjusted prediction"></div>
+        </div>
+        <div class="ci-labels">
+          <span id="ciBarLo">—</span>
+          <span style="color:var(--accent); font-size:10px">● posterior mean &nbsp; | &nbsp; ▌ LINEX-adjusted</span>
+          <span id="ciBarHi">—</span>
+        </div>
+      </div>
+
+    </div>
+
+  </div></div><script>
+// ── Build 24 glucose input slots ─────────────────────────────
+const grid   = document.getElementById('glucoseGrid');
+const labels = document.getElementById('slotLabels');
+
+for (let i = 0; i < 24; i++) {
+  const lbl = document.createElement('div');
+  lbl.className = 'slot-label';
+  lbl.textContent = `t-${24-i}`;
+  labels.appendChild(lbl);
+
+  const inp = document.createElement('input');
+  inp.type        = 'number';
+  inp.id          = `g${i}`;
+  inp.placeholder = '—';
+  inp.min         = 20; inp.max = 500;
+  inp.addEventListener('input', () => colorInput(inp));
+  grid.appendChild(inp);
+}
+
+function colorInput(inp) {
+  const v = parseFloat(inp.value);
+  inp.classList.remove('hypo','hyper','normal');
+  if (isNaN(v)) return;
+  if (v < 70)  inp.classList.add('hypo');
+  else if (v > 180) inp.classList.add('hyper');
+  else inp.classList.add('normal');
+}
+
+// ── Demo data ──────────────────────────────────────────────
+const demos = {
+  normal: [148,145,143,141,140,138,136,135,134,133,132,131,
+           130,130,129,128,128,127,126,126,125,124,124,123],
+  hypo:   [130,122,115,108,102,97,92,88,84,80,77,74,
+           71,68,65,63,61,59,57,56,55,54,53,52],
+  hyper:  [180,188,196,205,214,223,231,238,244,249,253,256,
+           258,259,260,260,259,257,255,252,249,245,241,237],
+};
+function fillDemo(type) {
+  const vals = demos[type];
+  for (let i=0; i<24; i++) {
+    const inp = document.getElementById(`g${i}`);
+    inp.value = vals[i];
+    colorInput(inp);
+  }
+}
+function clearAll() {
+  for (let i=0; i<24; i++) {
+    const inp = document.getElementById(`g${i}`);
+    inp.value = '';
+    inp.classList.remove('hypo','hyper','normal');
+  }
+  document.getElementById('resultPanel').classList.remove('visible');
+  document.getElementById('errorMsg').classList.remove('visible');
+}
+
+// ── Prediction ─────────────────────────────────────────────
+async function runPrediction() {
+  const glucose = [];
+  for (let i=0; i<24; i++) {
+    const v = parseFloat(document.getElementById(`g${i}`).value);
+    if (isNaN(v) || v < 20 || v > 500) {
+      showError(`Slot t-${24-i}: enter a valid value (20–500 mg/dL).`);
+      return;
+    }
+    glucose.push(v);
+  }
+
+  const hour = parseInt(document.getElementById('hour').value);
+  const dow  = parseInt(document.getElementById('dow').value);
+
+  document.getElementById('errorMsg').classList.remove('visible');
+  const btn = document.getElementById('predictBtn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+
+
+  try {
+    const res = await fetch('/predict', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ glucose_history: glucose, hour, dow })
+    });
+    const data = await res.json();
+
+    if (data.error) { showError(data.error); return; }
+    renderResult(data);
+
+  } catch(e) {
+    showError('Network error — is Flask running?');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.textContent = 'Run Bayesian Prediction';
+  }
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorMsg');
+  el.textContent = '⚠ ' + msg;
+  el.classList.add('visible');
+}
+
+// ── Render results ─────────────────────────────────────────
+function renderResult(d) {
+  const panel = document.getElementById('resultPanel');
+  panel.classList.add('visible');
+
+  // Hero
+  const predEl = document.getElementById('predValue');
+  predEl.textContent = d.prediction_mg;
+  predEl.style.color = zoneColor(d.zone);
+
+
+  // Zone badge
+  const zoneMap = {
+    normal:          { label:'Normal Range',    cls:'zone-normal' },
+    hypoglycaemia:   { label:'Hypoglycaemia ⚠', cls:'zone-hypoglycaemia' },
+    hyperglycaemia:  { label:'Hyperglycaemia',  cls:'zone-hyperglycaemia' },
+  };
+  const z = zoneMap[d.zone] || zoneMap.normal;
+  document.getElementById('zoneDisplay').innerHTML =
+    `<div class="zone-badge ${z.cls}"><div class="zone-dot"></div>${z.label}</div>`;
+// Clinical alert
+  let alertHtml = '';
+  if (d.zone === 'hypoglycaemia')
+    alertHtml = `<div class="alert alert-danger"><span class="alert-icon">⚡</span>
+      <div><strong>Hypoglycaemia predicted.</strong> Predicted glucose ${d.prediction_mg} mg/dL is below 70 mg/dL.
+      The 95% CrI is ${d.ci_lower}–${d.ci_upper} mg/dL.</div></div>`;
+  else if (d.zone === 'hyperglycaemia')
+    alertHtml = `<div class="alert alert-warn"><span class="alert-icon">⬆</span>
+      <div><strong>Hyperglycaemia predicted.</strong> Predicted glucose ${d.prediction_mg} mg/dL exceeds 180 mg/dL.
+      The 95% CrI is ${d.ci_lower}–${d.ci_upper} mg/dL.</div></div>`;
+  else
+    alertHtml = `<div class="alert alert-ok"><span class="alert-icon">✓</span>
+      <div>Predicted glucose ${d.prediction_mg} mg/dL is within normal range.
+      The 95% CrI is ${d.ci_lower}–${d.ci_upper} mg/dL.</div></div>`;
+  document.getElementById('clinicalAlert').innerHTML = alertHtml;
+  // Uncertainty bars (max reference = 50 mg/dL)
+  const maxUnc = 50;
+  document.getElementById('epistVal').textContent = d.epistemic_std;
+  document.getElementById('aleatVal').textContent = d.aleatoric_std;
+  document.getElementById('totalVal').textContent = d.total_std;
+  setTimeout(() => {
+    document.getElementById('epistBar').style.width = Math.min(d.epistemic_std/maxUnc*100, 100)+'%';
+    document.getElementById('aleatBar').style.width = Math.min(d.aleatoric_std/maxUnc*100, 100)+'%';
+    document.getElementById('totalBar').style.width = Math.min(d.total_std/maxUnc*100, 100)+'%';
+  }, 100);
+
+  // CI bar
+  document.getElementById('ciLo').textContent = d.ci_lower;
+  document.getElementById('ciHi').textContent = d.ci_upper;
+  document.getElementById('ciBarLo').textContent = d.ci_lower + ' mg/dL';
+  document.getElementById('ciBarHi').textContent = d.ci_upper + ' mg/dL';
+
+  // Position CI elements within bar
+  const barRange = Math.max(d.ci_upper - d.ci_lower, 1);
+  const predFrac  = (d.prediction_mg  - d.ci_lower) / barRange;
+  const linexFrac = (d.linex_adjusted - d.ci_lower) / barRange;
+
+  document.getElementById('ciFill').style.left  = '0%';
+  document.getElementById('ciFill').style.right = '0%';
+  document.getElementById('ciTick').style.left  = Math.max(0,Math.min(100,predFrac*100)) + '%';
+  document.getElementById('linexTick').style.left = Math.max(0,Math.min(100,linexFrac*100)) + '%';
+
+  // Scroll to result
+  panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function zoneColor(zone) {
+  if (zone === 'hypoglycaemia')  return 'var(--danger)';
+  if (zone === 'hyperglycaemia') return 'var(--warn)';
+  return 'var(--accent2)';
+}
+</script>
+</body>
+</html>
