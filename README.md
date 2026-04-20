@@ -148,7 +148,7 @@ An interactive clinical web app built with **Flask + HTML/CSS/JavaScript**.
 - Glycaemic zone classification with clinical alert
 - Demo buttons: Normal / Hypo trend / Hyper trend scenarios
 
-### Screenshots
+### Webpage
 
 
 
