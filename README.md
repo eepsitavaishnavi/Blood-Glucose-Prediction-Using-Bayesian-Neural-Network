@@ -151,13 +151,9 @@ An interactive clinical web app built with **Flask + HTML/CSS/JavaScript**.
 ### Screenshots
 
 
-| Home | 
-|:---:|:---:|
-| ![Input screen](images/input.png) |
 
-| Uncertainty Bands |
-|:---:|:---:|
-| ![Uncertainty](images/output.png) |
+ ![Input screen](images/input.png) 
+ ![Uncertainty](images/output.png) 
 
 ---
 
