@@ -41,7 +41,7 @@ Data is parsed from XML files. Feature engineering is performed **per patient** 
 
 ---
 
-## ⚙️ Statistical Inference Concepts Applied
+##  Statistical Inference Concepts Applied
 
 | Concept | Application |
 |---------|-------------|
@@ -108,15 +108,15 @@ BayesianLinear
 
 ### Key Metrics
 
-| Metric | Value | Benchmark |
-|--------|-------|-----------|
+| Metric | Value |
+|--------|-------|
 | RMSE (Squared Error Loss) | **22.04 mg/dL** |
 | MAE (Absolute Error Loss) | 15.49 mg/dL | 
 | R² | 0.9411 | 
 | LINEX (a=+0.05, overest. penalty) | 2.5909 |
 | LINEX (a=−0.05, underest. penalty) | 2.1559 | 
 | ±2σ Coverage | **96.49%** | 
-| Best training epoch | 42 / 50 | Early stopping |
+| Best training epoch | 42 / 50 |
 
 ### Uncertainty by Glycaemic Zone
 
@@ -151,13 +151,13 @@ An interactive clinical web app built with **Flask + HTML/CSS/JavaScript**.
 ### Screenshots
 
 
-| Home / Input | Prediction Output |
+| Home | 
 |:---:|:---:|
 | ![Input screen](images/input.png) |
 
-| Uncertainty Bands | MC Dropout Histogram |
+| Uncertainty Bands |
 |:---:|:---:|
-| ![Uncertainty](images/uncertainty.png) |
+| ![Uncertainty](images/output.png) |
 
 ---
 
@@ -247,7 +247,3 @@ seaborn>=0.12.0
 joblib>=1.2.0
 flask>=2.3.0
 ```
-
-<div align="center">
-<sub>OhioT1DM Dataset &nbsp;·&nbsp; PyTorch &nbsp;·&nbsp; Flask &nbsp;·&nbsp; Statistical Inference Project 2026</sub>
-</div>
