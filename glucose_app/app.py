@@ -1,6 +1,5 @@
 """
 Bayesian BiGRU Blood Glucose Prediction — Flask Web App
-Matches exactly the notebook's model architecture and feature pipeline.
 """
 
 from flask import Flask, request, jsonify, render_template
@@ -13,7 +12,7 @@ import os
 
 app = Flask(__name__)
 
-# ── Config (must match notebook exactly) ──────────────────────
+
 SEQ_LEN  = 24
 HIDDEN   = 50
 N_LAYERS = 3
@@ -31,7 +30,6 @@ FEATURE_COLS = [
 INPUT_SIZE = len(FEATURE_COLS)  # 14
 
 
-# ── Exact model architecture from notebook ─────────────────────
 class BayesianLinear(nn.Module):
     def __init__(self, in_f, out_f):
         super().__init__()
@@ -95,8 +93,6 @@ class PaperBiGRU(nn.Module):
             if isinstance(m, nn.Dropout):
                 m.train()
 
-
-# ── Load model and scalers ────────────────────────────────────
 model = PaperBiGRU(INPUT_SIZE).to(DEVICE)
 MODEL_PATH   = 'best_bigru_model.pt'
 SCALERX_PATH = 'scaler_X.pkl'
@@ -109,18 +105,18 @@ if os.path.exists(MODEL_PATH):
     model.load_state_dict(torch.load(MODEL_PATH, map_location=DEVICE))
     model.eval()
     model_loaded = True
-    print(f"✅ Model loaded from {MODEL_PATH}")
+    print(f" Model loaded from {MODEL_PATH}")
 else:
-    print(f"⚠️  Model file not found: {MODEL_PATH}")
+    print(f"  Model file not found: {MODEL_PATH}")
 
 scaler_X = scaler_y = None
 if os.path.exists(SCALERX_PATH) and os.path.exists(SCALERY_PATH):
     scaler_X = joblib.load(SCALERX_PATH)
     scaler_y = joblib.load(SCALERY_PATH)
     scalers_loaded = True
-    print(f"✅ Scalers loaded")
+    print(f" Scalers loaded")
 else:
-    print(f"⚠️  Scalers not found — save them from notebook first (see README)")
+    print(f"  Scalers not found — save them from notebook first (see README)")
 
 
 def build_features_from_history(glucose_history: list, hour: int, dow: int) -> np.ndarray:
@@ -133,7 +129,6 @@ def build_features_from_history(glucose_history: list, hour: int, dow: int) -> n
 
     rows = []
     for i in range(len(g)):
-        # Lag features (use 0 if not enough history)
         lag_1  = g[i-1]  if i >= 1  else g[0]
         lag_2  = g[i-2]  if i >= 2  else g[0]
         lag_3  = g[i-3]  if i >= 3  else g[0]
