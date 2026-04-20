@@ -7,11 +7,10 @@ This project applies deep statistical inference to produce not just predictions,
 
 ## Team Members
 
-| Name | Roll Number |
-|------|-------------|
-| Janapareddy Vidya Varshini | 230041013 |
-| Korubilli Vaishnavi | 230041016 |
-| Mullapudi Namaswi | 230041023 |
+##  Team Members
+- **Janapareddy Vidya Varshini** – 230041013  
+- **Korubilli Vaishnavi** – 230041016  
+- **Mullapudi Namaswi** – 230041023 
 
 ---
 
