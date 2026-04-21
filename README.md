@@ -56,7 +56,7 @@ Data is parsed from XML files. Feature engineering is performed **per patient** 
 
 ##  Model Architecture
 
-The model follows the paper architecture exactly:
+
 
 ```
 Input (24 × 14)
